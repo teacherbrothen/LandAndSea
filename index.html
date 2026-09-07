@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Land vs. Sea Thermal Inertia Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 24px; color: #2c3e50; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 28px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h2 { text-align: center; margin-top: 0; }
+        .setup-box { background-color: #fef9e7; border: 2px solid #f39c12; padding: 18px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        .setup-box input[type="text"] { padding: 8px 12px; font-size: 1.05em; border-radius: 4px; border: 2px solid #f39c12; width: 220px; margin-left: 8px; }
+        .date-badge { margin-top: 12px; font-weight: bold; font-size: 1.1em; color: #d35400; }
+        .instructions { background-color: #e8f4f8; border-left: 5px solid #3498db; padding: 15px; border-radius: 6px; margin-bottom: 20px; line-height: 1.5; }
+        .link-buttons { display: flex; gap: 15px; margin-bottom: 25px; }
+        .earth-btn { flex: 1; padding: 12px; text-align: center; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; border: none; font-size: 0.95em; }
+        .btn-land { background-color: #27ae60; }
+        .btn-sea { background-color: #2980b9; }
+        .earth-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .table-wrapper { max-height: 320px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; text-align: center; }
+        th, td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+        th { background-color: #f8fafc; position: sticky; top: 0; z-index: 10; }
+        input[type="number"] { width: 80px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+        .action-btn { width: 100%; padding: 14px; background-color: #e67e22; color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; margin-bottom: 25px; }
+        .chart-container { position: relative; height: 380px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🌡️ Land vs. Ocean Temperature Tracker</h2>
+    
+    <!-- STUDENT NAME INPUT BOX -->
+    <div class="setup-box">
+        <label for="student-name"><strong>Enter Student First Name:</strong></label>
+        <input type="text" id="student-name" placeholder="Type name here..." oninput="initializeActivity()">
+        <div id="date-display" class="date-badge">⚠️ Enter your name above to generate your unique target date!</div>
+    </div>
+
+    <div class="instructions">
+        <strong>Instructions:</strong>
+        <ol>
+            <li>Type your first name in the yellow box above to unlock your assigned date.</li>
+            <li>Click the buttons below to open the Land and Ocean maps.</li>
+            <li>Use the <code>&lt;</code> and <code>&gt;</code> controls on the maps to record the temperature every hour for your assigned date.</li>
+            <li>Enter temperatures in the table and click <strong>Generate Comparison Graph</strong>.</li>
+        </ol>
+    </div>
+
+    <div class="link-buttons">
+        <button id="btn-land" class="earth-btn btn-land" disabled onclick="openMapWindow(landUrl, 'LandWindow')">
+            🌲 Open Land Window (Central NL)
+        </button>
+        <button id="btn-sea" class="earth-btn btn-sea" disabled onclick="openMapWindow(oceanUrl, 'OceanWindow')">
+            🌊 Open Ocean Window (Atlantic)
+        </button>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time (Local)</th>
+                    <th>Land Temp (°C)</th>
+                    <th>Ocean Temp (°C)</th>
+                </tr>
+            </thead>
+            <tbody id="data-table-body"></tbody>
+        </table>
+    </div>
+
+    <button class="action-btn" onclick="updateChart()">📊 Generate Comparison Graph</button>
+
+    <div class="chart-container">
+        <canvas id="tempChart"></canvas>
+    </div>
+</div>
+
+<script>
+    let landUrl = "";
+    let oceanUrl = "";
+    let assignedDateString = "";
+    const sessionSalt = Math.floor(Math.random() * 10000);
+
+    function openMapWindow(url, windowName) {
+        window.open(url, windowName, 'width=950,height=750,resizable=yes,scrollbars=yes');
+    }
+
+    function initializeActivity() {
+        const nameInput = document.getElementById("student-name").value.trim();
+        const btnLand = document.getElementById("btn-land");
+        const btnSea = document.getElementById("btn-sea");
+        const dateDisplay = document.getElementById("date-display");
+
+        if (nameInput.length === 0) {
+            btnLand.disabled = true;
+            btnSea.disabled = true;
+            dateDisplay.innerText = "⚠️ Enter your name above to generate your unique target date!";
+            return;
+        }
+
+        let hash = 0;
+        const combinedSeed = nameInput.toLowerCase() + sessionSalt;
+        for (let i = 0; i < combinedSeed.length; i++) {
+            hash = combinedSeed.charCodeAt(i) + ((hash << 5) - hash);
+        }
+
+        const year = 2021 + (Math.abs(hash) % 5);
+        const dayOffset = Math.abs(hash >> 3) % 106;
+
+        const startDate = new Date(year, 5, 1);
+        startDate.setDate(startDate.getDate() + dayOffset);
+
+        const yyyy = startDate.getFullYear();
+        const mm = String(startDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(startDate.getDate()).padStart(2, '0');
+
+        assignedDateString = `${yyyy}/${mm}/${dd}`;
+        dateDisplay.innerText = `Assigned Date for ${nameInput}: ${assignedDateString}`;
+
+        landUrl = `https://earth.nullschool.net/#${assignedDateString}/0330Z/wind/surface/level/overlay=temp/orthographic=-67.00,50.00,2000/loc=-56.47,48.69`;
+        oceanUrl = `https://earth.nullschool.net/#${assignedDateString}/0330Z/wind/surface/level/overlay=temp/orthographic=-67.00,50.00,2000/loc=-50.00,47.00`;
+
+        btnLand.disabled = false;
+        btnSea.disabled = false;
+
+        updateChartTitle();
+    }
+
+    const tableBody = document.getElementById("data-table-body");
+    const hours = ["00:30", "01:30", "02:30", "03:30", "04:30", "05:30", "06:30", "07:30", "08:30", "09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30", "16:30", "17:30", "18:30", "19:30", "20:30", "21:30", "22:30", "23:30"];
+
+    hours.forEach((hr) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td><strong>${hr}</strong></td>
+            <td><input type="number" class="land-input" value="0.0" step="0.1"></td>
+            <td><input type="number" class="ocean-input" value="0.0" step="0.1"></td>
+        `;
+        tableBody.appendChild(row);
+    });
+
+    const ctx = document.getElementById('tempChart').getContext('2d');
+    const initialZeros = new Array(24).fill(0);
+
+    let tempChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: hours,
+            datasets: [
+                {
+                    label: 'Land Temperature (°C)',
+                    data: initialZeros,
+                    borderColor: '#27ae60',
+                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true
+                },
+                {
+                    label: 'Ocean Temperature (°C)',
+                    data: initialZeros,
+                    borderColor: '#2980b9',
+                    backgroundColor: 'rgba(41, 128, 185, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: 'Land vs. Ocean Temperatures', font: { size: 16 } }
+            },
+            scales: {
+                y: { title: { display: true, text: 'Temperature (°C)' } },
+                x: { title: { display: true, text: 'Time of Day (24hr)' } }
+            }
+        }
+    });
+
+    function updateChartTitle() {
+        const studentName = document.getElementById("student-name").value.trim() || "Student";
+        tempChart.options.plugins.title.text = `Student: ${studentName} | Date: ${assignedDateString}`;
+        tempChart.update();
+    }
+
+    function updateChart() {
+        const landInputs = document.querySelectorAll('.land-input');
+        const oceanInputs = document.querySelectorAll('.ocean-input');
+
+        const newLandData = Array.from(landInputs).map(input => parseFloat(input.value) || 0);
+        const newOceanData = Array.from(oceanInputs).map(input => parseFloat(input.value) || 0);
+
+        tempChart.data.datasets[0].data = newLandData;
+        tempChart.data.datasets[1].data = newOceanData;
+        
+        updateChartTitle();
+    }
+</script>
+
+</body>
+</html>
