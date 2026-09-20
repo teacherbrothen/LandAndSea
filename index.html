@@ -79,6 +79,19 @@
 </div>
 
 <script>
+    // ==========================================
+    // 1. ADD YOUR CURATED DATES HERE (YYYY/MM/DD)
+    // ==========================================
+    const curatedDates = [
+        "2023/06/26",
+        "2023/07/26",
+        "2025/07/07",
+        "2025/07/09",
+        "2025/07/31",
+        "2025/09/01",
+        "2025/09/02"
+    ];
+
     let landUrl = "";
     let oceanUrl = "";
     let assignedDateString = "";
@@ -101,23 +114,17 @@
             return;
         }
 
+        // Hash name + session salt to pick evenly from the curated pool
         let hash = 0;
         const combinedSeed = nameInput.toLowerCase() + sessionSalt;
         for (let i = 0; i < combinedSeed.length; i++) {
             hash = combinedSeed.charCodeAt(i) + ((hash << 5) - hash);
         }
 
-        const year = 2021 + (Math.abs(hash) % 5);
-        const dayOffset = Math.abs(hash >> 3) % 106;
+        // Select a date from your curated list
+        const selectedIndex = Math.abs(hash) % curatedDates.length;
+        assignedDateString = curatedDates[selectedIndex];
 
-        const startDate = new Date(year, 5, 1);
-        startDate.setDate(startDate.getDate() + dayOffset);
-
-        const yyyy = startDate.getFullYear();
-        const mm = String(startDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(startDate.getDate()).padStart(2, '0');
-
-        assignedDateString = `${yyyy}/${mm}/${dd}`;
         dateDisplay.innerText = `Assigned Date for ${nameInput}: ${assignedDateString}`;
 
         landUrl = `https://earth.nullschool.net/#${assignedDateString}/0330Z/wind/surface/level/overlay=temp/orthographic=-67.00,50.00,2000/loc=-56.47,48.69`;
