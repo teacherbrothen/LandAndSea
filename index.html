@@ -9,15 +9,15 @@
     <!-- LZ-String for URL state compression -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 24px; color: #2c3e50; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 24px; color: #2c3e50; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 28px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h2 { text-align: center; margin-top: 0; }
+        h2 { text-align: center; margin-top: 0; user-select: none; }
+        .secret-trigger { cursor: pointer; }
         
         .setup-box { background-color: #fef9e7; border: 2px solid #f39c12; padding: 18px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
         .setup-box input[type="text"] { padding: 8px 12px; font-size: 1.05em; border-radius: 4px; border: 2px solid #f39c12; width: 220px; margin-left: 8px; }
         .date-badge { margin-top: 12px; font-weight: bold; font-size: 1.1em; color: #d35400; }
         
-        /* Time Format Toggle Styles */
         .toggle-group { margin-top: 15px; display: inline-flex; align-items: center; background: #fff; padding: 6px 14px; border-radius: 20px; border: 1px solid #f39c12; }
         .toggle-group label { cursor: pointer; margin: 0 10px; font-weight: 600; font-size: 0.95em; color: #555; }
         .toggle-group input[type="radio"] { margin-right: 5px; accent-color: #e67e22; }
@@ -29,11 +29,11 @@
         .btn-sea { background-color: #2980b9; }
         .earth-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
         
-        .table-wrapper { max-height: 340px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; }
+        .table-wrapper { max-height: 380px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; text-align: center; }
-        th, td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+        th, td { padding: 9px 12px; border-bottom: 1px solid #eee; }
         th { background-color: #f8fafc; position: sticky; top: 0; z-index: 10; }
-        input[type="number"] { width: 80px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+        input[type="number"] { width: 85px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 0.95em; }
         
         .action-row { display: flex; gap: 12px; margin-bottom: 20px; }
         .action-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; color: white; }
@@ -42,19 +42,23 @@
         
         .save-banner { background: #eafaf1; border: 1px solid #2ecc71; padding: 16px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
         .save-banner-title { font-weight: bold; color: #27ae60; margin-bottom: 10px; font-size: 1.05em; }
-        .save-btn-group { display: flex; gap: 10px; justify-content: center; }
+        .save-btn-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
         .save-btn { padding: 10px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
         .btn-copy-link { background: #34495e; color: white; }
         .btn-email-link { background: #2980b9; color: white; }
 
-        .chart-container { position: relative; height: 380px; width: 100%; margin-top: 15px; }
+        .teacher-box { background: #2c3e50; color: white; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; display: none; line-height: 1.6; }
+        .chart-container { position: relative; height: 380px; width: 100%; margin-top: 10px; }
         .status-msg { font-size: 0.9em; font-weight: bold; margin-top: 8px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🌡️ Land vs. Ocean Temperature Tracker</h2>
+    <h2>
+        <span class="secret-trigger" onclick="toggleTeacherKey()" title="Click to toggle Teacher Answer Key">🌡️</span> 
+        Land vs. Ocean Temperature Tracker
+    </h2>
     
     <!-- SETUP & REGION BOX -->
     <div class="setup-box">
@@ -81,10 +85,10 @@
     <div class="instructions">
         <strong>Instructions:</strong>
         <ol>
-            <li>Type your first name in the box above to generate your assigned date.</li>
+            <li>Type your first name above to generate your assigned date.</li>
             <li>Verify your region toggle is set correctly (<strong>NL :30</strong> or <strong>Labrador :00</strong>).</li>
             <li>Click the buttons below to open the Land and Ocean maps in separate windows.</li>
-            <li>Use the <code>&lt;</code> and <code>&gt;</code> controls on the maps to record the temperature <strong>every two hours</strong>.</li>
+            <li>Use the <strong><code>&gt;</code></strong> arrow on the maps to advance <strong>every 3 hours</strong> and record the temperature.</li>
             <li>Enter the temperatures in the table below and click <strong>Update Comparison Graph</strong>.</li>
         </ol>
     </div>
@@ -116,6 +120,9 @@
         <button class="action-btn btn-export" onclick="downloadGraphPNG()">📷 Download Graph (PNG)</button>
     </div>
 
+    <!-- TEACHER AUTO-DIAGNOSTIC BOX (Shown in review mode) -->
+    <div id="teacher-diagnostics" class="teacher-box"></div>
+
     <!-- SAVE & SUBMIT TOOLBAR -->
     <div class="save-banner">
         <div class="save-banner-title">💾 Save Your Progress or Submit to Brightspace</div>
@@ -132,22 +139,48 @@
 </div>
 
 <script>
-    const curatedDates = [
-        "2023/06/26",
-        "2023/07/26",
-        "2025/07/07",
-        "2025/07/09",
-        "2025/07/31",
-        "2025/09/01",
-        "2025/09/02"
-    ];
+    // 1. MASTER DATA KEYS (NOAA GFS Reanalysis)
+    const masterKeys = {
+        "2023/06/26": {
+            "nl": { "land": [6.7, 6.2, 6.4, 9.9, 15.9, 19.7, 18.6, 11.6], "ocean": [9.4, 7.6, 6.8, 7.1, 7.4, 7.3, 7.3, 7.3] },
+            "lab": { "land": [6.7, 6.2, 6.4, 9.9, 15.9, 19.7, 18.6, 11.6], "ocean": [9.4, 7.6, 6.8, 7.1, 7.4, 7.3, 7.3, 7.3] }
+        },
+        "2023/07/26": {
+            "nl": { "land": [16.6, 15.2, 15.8, 23.2, 26.5, 27.0, 21.5, 17.3], "ocean": [12.6, 12.8, 12.8, 12.7, 13.1, 14.5, 14.1, 15.4] },
+            "lab": { "land": [16.6, 15.2, 15.8, 23.2, 26.5, 27.0, 21.5, 17.3], "ocean": [12.6, 12.8, 12.8, 12.7, 13.1, 14.5, 14.1, 15.4] }
+        },
+        "2025/07/07": {
+            "nl": { "land": [16.4, 15.9, 15.7, 20.6, 23.9, 23.9, 22.3, 15.0], "ocean": [11.3, 11.3, 11.1, 11.7, 11.4, 10.8, 10.5, 10.1] },
+            "lab": { "land": [16.4, 15.9, 15.7, 20.6, 23.9, 23.9, 22.3, 15.0], "ocean": [11.3, 11.3, 11.1, 11.7, 11.4, 10.8, 10.5, 10.1] }
+        },
+        "2025/07/09": {
+            "nl": { "land": [11.8, 10.7, 10.9, 18.0, 22.7, 24.9, 21.7, 14.5], "ocean": [10.5, 8.9, 10.0, 9.6, 8.8, 9.1, 9.7, 9.9] },
+            "lab": { "land": [11.8, 10.7, 10.9, 18.0, 22.7, 24.9, 21.7, 14.5], "ocean": [10.5, 8.9, 10.0, 9.6, 8.8, 9.1, 9.7, 9.9] }
+        },
+        "2025/07/31": {
+            "nl": { "land": [16.2, 13.9, 13.3, 13.5, 16.0, 23.0, 19.7, 13.1], "ocean": [14.5, 13.8, 13.5, 13.6, 13.9, 13.8, 14.1, 13.9] },
+            "lab": { "land": [16.2, 13.9, 13.3, 13.5, 16.0, 23.0, 19.7, 13.1], "ocean": [14.5, 13.8, 13.5, 13.6, 13.9, 13.8, 14.1, 13.9] }
+        },
+        "2025/09/01": {
+            "nl": { "land": [9.8, 9.1, 8.7, 8.7, 15.0, 16.9, 16.7, 9.8], "ocean": [14.2, 13.9, 13.8, 13.8, 11.3, 11.0, 10.9, 10.3] },
+            "lab": { "land": [9.8, 9.1, 8.7, 8.7, 15.0, 16.9, 16.7, 9.8], "ocean": [14.2, 13.9, 13.8, 13.8, 11.3, 11.0, 10.9, 10.3] }
+        },
+        "2025/09/02": {
+            "nl": { "land": [8.3, 8.0, 7.7, 15.6, 22.5, 24.8, 22.1, 15.0], "ocean": [9.9, 10.2, 11.4, 12.4, 13.2, 13.4, 13.4, 13.2] },
+            "lab": { "land": [8.3, 8.0, 7.7, 15.6, 22.5, 24.8, 22.1, 15.0], "ocean": [9.9, 10.2, 11.4, 12.4, 13.2, 13.4, 13.4, 13.2] }
+        }
+    };
 
-    const hoursHalf = ["00:30", "02:30", "04:30", "06:30", "08:30", "10:30", "12:30", "14:30", "16:30", "18:30", "20:30", "22:30"];
-    const hoursWhole = ["00:00", "02:00", "04:00", "06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
+    const curatedDates = Object.keys(masterKeys);
+
+    // 3-hour local timestamps (8 intervals)
+    const hoursHalf = ["00:30", "03:30", "06:30", "09:30", "12:30", "15:30", "18:30", "21:30"];
+    const hoursWhole = ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"];
 
     let landUrl = "";
     let oceanUrl = "";
     let assignedDateString = "";
+    let teacherKeyActive = false;
     
     // Persistent Session Lineage & Salt (preserved across saves)
     let sessionMeta = {
@@ -168,8 +201,8 @@
 
     function updateMapUrls() {
         if (!assignedDateString) return;
-        const isLabrador = document.querySelector('input[name="time-offset"]:checked').value === "lab";
-        const startTime = isLabrador ? "0400Z" : "0330Z";
+        // 0300Z aligns with 00:00 ADT (Labrador) and 00:30 NDT (Newfoundland)
+        const startTime = "0300Z";
 
         landUrl = `https://earth.nullschool.net/#${assignedDateString}/${startTime}/wind/surface/level/overlay=temp/orthographic=-67.00,50.00,2000/loc=-56.47,48.69`;
         oceanUrl = `https://earth.nullschool.net/#${assignedDateString}/${startTime}/wind/surface/level/overlay=temp/orthographic=-67.00,50.00,2000/loc=-50.00,47.00`;
@@ -189,7 +222,6 @@
         }
 
         let hash = 0;
-        // Use the preserved sessionMeta.salt so the date is stable across devices
         const combinedSeed = nameInput.toLowerCase() + sessionMeta.salt;
         for (let i = 0; i < combinedSeed.length; i++) {
             hash = combinedSeed.charCodeAt(i) + ((hash << 5) - hash);
@@ -242,7 +274,7 @@
 
     // Chart.js Setup
     const ctx = document.getElementById('tempChart').getContext('2d');
-    const initialZeros = new Array(12).fill(0);
+    const initialZeros = new Array(8).fill(0);
 
     let tempChart = new Chart(ctx, {
         type: 'line',
@@ -277,7 +309,7 @@
             },
             scales: {
                 y: { title: { display: true, text: 'Temperature (°C)' } },
-                x: { title: { display: true, text: 'Time of Day (24hr)' } }
+                x: { title: { display: true, text: 'Time of Day (Local)' } }
             }
         }
     });
@@ -302,9 +334,9 @@
         showStatus("Chart updated successfully!", "green");
     }
 
-    // EXPORT PNG FEATURE
+    // PNG EXPORT
     function downloadGraphPNG() {
-        updateChart(); // Ensure chart is fresh
+        updateChart();
         const imageURI = tempChart.toBase64Image('image/png', 1);
         const studentName = document.getElementById("student-name").value.trim() || "Student";
         
@@ -313,6 +345,97 @@
         link.href = imageURI;
         link.click();
         showStatus("Graph downloaded as PNG image!", "green");
+    }
+
+    // TEACHER MASTER KEY OVERLAY (Ctrl+K or Cmd+K)
+    function toggleTeacherKey() {
+        if (!assignedDateString || !masterKeys[assignedDateString]) {
+            showStatus("No master key found for this date.", "red");
+            return;
+        }
+
+        const region = document.querySelector('input[name="time-offset"]:checked').value;
+        const keyData = masterKeys[assignedDateString][region];
+
+        if (teacherKeyActive) {
+            // Remove the 2 dashed key datasets
+            tempChart.data.datasets = tempChart.data.datasets.slice(0, 2);
+            teacherKeyActive = false;
+            showStatus("Teacher Key Overlay: OFF", "#7f8c8d");
+        } else {
+            // Add dashed benchmark lines
+            tempChart.data.datasets.push(
+                {
+                    label: '🔑 Key Land (°C)',
+                    data: keyData.land,
+                    borderColor: '#e74c3c',
+                    borderWidth: 2,
+                    borderDash: [6, 6],
+                    pointRadius: 4,
+                    fill: false,
+                    tension: 0.3
+                },
+                {
+                    label: '🔑 Key Ocean (°C)',
+                    data: keyData.ocean,
+                    borderColor: '#34495e',
+                    borderWidth: 2,
+                    borderDash: [6, 6],
+                    pointRadius: 4,
+                    fill: false,
+                    tension: 0.3
+                }
+            );
+            teacherKeyActive = true;
+            showStatus("Teacher Key Overlay: ACTIVE (Dashed Lines)", "green");
+        }
+
+        tempChart.update();
+    }
+
+    // Listen for Ctrl+K (Windows/Linux) or Cmd+K (Mac)
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            toggleTeacherKey();
+        }
+    });
+
+    // AUTO-GRADING DIAGNOSTICS
+    function runTeacherDiagnostics(landData, oceanData) {
+        const box = document.getElementById("teacher-diagnostics");
+        const validLand = landData.map(v => parseFloat(v)).filter(v => !isNaN(v));
+        const validOcean = oceanData.map(v => parseFloat(v)).filter(v => !isNaN(v));
+
+        if (validLand.length < 8 || validOcean.length < 8) {
+            box.style.display = "block";
+            box.innerHTML = `<span style="color:#e74c3c;">⚠️ Incomplete Data Submitted: (${validLand.length}/8 Land, ${validOcean.length}/8 Ocean recorded)</span>`;
+            return;
+        }
+
+        const landMin = Math.min(...validLand);
+        const landMax = Math.max(...validLand);
+        const landDelta = (landMax - landMin).toFixed(1);
+
+        const oceanMin = Math.min(...validOcean);
+        const oceanMax = Math.max(...validOcean);
+        const oceanDelta = (oceanMax - oceanMin).toFixed(1);
+
+        const peakIndex = validLand.indexOf(landMax);
+        const peakHour = getCurrentHoursList()[peakIndex];
+
+        const landCheck = landDelta >= 8.0 ? "✅" : "⚠️ Low range";
+        const oceanCheck = oceanDelta <= 2.5 ? "✅" : "⚠️ Too variable";
+
+        box.style.display = "block";
+        box.innerHTML = `
+            <strong>👨‍🏫 Teacher Evaluation Diagnostics:</strong><br>
+            • <strong>Land Range (ΔT):</strong> ${landDelta}°C (${landMin}° to ${landMax}°) ${landCheck} (Expected swing: &gt; 8°C)<br>
+            • <strong>Ocean Range (ΔT):</strong> ${oceanDelta}°C (${oceanMin}° to ${oceanMax}°) ${oceanCheck} (Expected stability: &le; 2.5°C)<br>
+            • <strong>Land Afternoon Peak:</strong> ${peakHour} (Normal solar peak: 12:30–15:30)<br>
+            • <strong>Thermal Inertia Demonstrated:</strong> ${landDelta > (oceanDelta * 3) ? "✅ Clear Specific Heat Contrast" : "❌ Lines are too similar"}<br>
+            <span style="font-size:0.85em; opacity: 0.85;">(Press <strong>Cmd+K</strong> or click the 🌡️ icon to overlay official answer key curves)</span>
+        `;
     }
 
     // STATE MANAGEMENT (PERSISTENCE & ANTI-TAMPER)
@@ -381,7 +504,7 @@
         setTimeout(() => { display.innerText = ""; }, 5000);
     }
 
-    function restoreState(state) {
+    function restoreState(state, isTeacherReview = false) {
         if (!state) return;
 
         if (state.meta) sessionMeta = state.meta;
@@ -389,7 +512,7 @@
         const nameInput = document.getElementById("student-name");
         nameInput.value = state.name || "";
         
-        // If restoring an already created session, lock the name field to the original author
+        // Lock name field to original author
         if (state.meta && state.meta.originalAuthor) {
             nameInput.readOnly = true;
             nameInput.style.backgroundColor = "#e8eaed";
@@ -403,9 +526,13 @@
         initializeActivity();
         renderTable(state.landData, state.oceanData);
         updateChart();
+
+        if (isTeacherReview) {
+            runTeacherDiagnostics(state.landData, state.oceanData);
+        }
     }
 
-    // ON LOAD: Check URL Hash first, then fall back to LocalStorage
+    // ON LOAD: Read URL Hash, fall back to LocalStorage
     window.addEventListener('DOMContentLoaded', () => {
         if (window.location.hash.startsWith('#state=')) {
             try {
@@ -413,20 +540,19 @@
                 const jsonString = LZString.decompressFromEncodedURIComponent(compressed);
                 if (jsonString) {
                     const parsed = JSON.parse(jsonString);
-                    restoreState(parsed);
+                    restoreState(parsed, true);
                     showStatus("Restored session from link!", "green");
                 }
             } catch (e) {
                 console.error("Failed to load state from hash", e);
             }
-            // Clear hash so refresh won't revert newer work
+            // Clean up URL so browser refresh won't overwrite ongoing work
             history.replaceState(null, '', window.location.pathname);
         } else {
-            // LocalStorage fallback for same-machine refreshes
             const saved = localStorage.getItem('thermal_inertia_save');
             if (saved) {
                 try {
-                    restoreState(JSON.parse(saved));
+                    restoreState(JSON.parse(saved), false);
                 } catch(e) {}
             } else {
                 renderTable();
