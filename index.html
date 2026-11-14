@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Land vs. Sea Thermal Inertia Tracker</title>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- LZ-String for URL state compression -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 24px; color: #2c3e50; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 28px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
@@ -32,8 +35,20 @@
         th { background-color: #f8fafc; position: sticky; top: 0; z-index: 10; }
         input[type="number"] { width: 80px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
         
-        .action-btn { width: 100%; padding: 14px; background-color: #e67e22; color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; margin-bottom: 25px; }
-        .chart-container { position: relative; height: 380px; width: 100%; }
+        .action-row { display: flex; gap: 12px; margin-bottom: 20px; }
+        .action-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; color: white; }
+        .btn-update { background-color: #e67e22; }
+        .btn-export { background-color: #8e44ad; }
+        
+        .save-banner { background: #eafaf1; border: 1px solid #2ecc71; padding: 16px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        .save-banner-title { font-weight: bold; color: #27ae60; margin-bottom: 10px; font-size: 1.05em; }
+        .save-btn-group { display: flex; gap: 10px; justify-content: center; }
+        .save-btn { padding: 10px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-copy-link { background: #34495e; color: white; }
+        .btn-email-link { background: #2980b9; color: white; }
+
+        .chart-container { position: relative; height: 380px; width: 100%; margin-top: 15px; }
+        .status-msg { font-size: 0.9em; font-weight: bold; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -70,7 +85,7 @@
             <li>Verify your region toggle is set correctly (<strong>NL :30</strong> or <strong>Labrador :00</strong>).</li>
             <li>Click the buttons below to open the Land and Ocean maps in separate windows.</li>
             <li>Use the <code>&lt;</code> and <code>&gt;</code> controls on the maps to record the temperature <strong>every two hours</strong>.</li>
-            <li>Enter the temperatures in the table below and click <strong>Generate Comparison Graph</strong>.</li>
+            <li>Enter the temperatures in the table below and click <strong>Update Comparison Graph</strong>.</li>
         </ol>
     </div>
 
@@ -96,7 +111,20 @@
         </table>
     </div>
 
-    <button class="action-btn" onclick="updateChart()">📊 Generate Comparison Graph</button>
+    <div class="action-row">
+        <button class="action-btn btn-update" onclick="updateChart()">📊 Update Comparison Graph</button>
+        <button class="action-btn btn-export" onclick="downloadGraphPNG()">📷 Download Graph (PNG)</button>
+    </div>
+
+    <!-- SAVE & SUBMIT TOOLBAR -->
+    <div class="save-banner">
+        <div class="save-banner-title">💾 Save Your Progress or Submit to Brightspace</div>
+        <div class="save-btn-group">
+            <button class="save-btn btn-copy-link" onclick="copyStateLink()">🔗 Copy Resume / Submission Link</button>
+            <button class="save-btn btn-email-link" onclick="emailStateLink()">✉️ Email Me This Link</button>
+        </div>
+        <div id="status-display" class="status-msg"></div>
+    </div>
 
     <div class="chart-container">
         <canvas id="tempChart"></canvas>
@@ -114,14 +142,20 @@
         "2025/09/02"
     ];
 
-    // 2-hour intervals for both regions
     const hoursHalf = ["00:30", "02:30", "04:30", "06:30", "08:30", "10:30", "12:30", "14:30", "16:30", "18:30", "20:30", "22:30"];
     const hoursWhole = ["00:00", "02:00", "04:00", "06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
 
     let landUrl = "";
     let oceanUrl = "";
     let assignedDateString = "";
-    const sessionSalt = Math.floor(Math.random() * 10000);
+    
+    // Persistent Session Lineage & Salt (preserved across saves)
+    let sessionMeta = {
+        genesisId: crypto.randomUUID().slice(0, 8),
+        createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        salt: Math.floor(Math.random() * 10000),
+        originalAuthor: ""
+    };
 
     function getCurrentHoursList() {
         const isLabrador = document.querySelector('input[name="time-offset"]:checked').value === "lab";
@@ -134,8 +168,6 @@
 
     function updateMapUrls() {
         if (!assignedDateString) return;
-        
-        // Use 0400Z for Labrador (on the hour) and 0330Z for Newfoundland (half-hour)
         const isLabrador = document.querySelector('input[name="time-offset"]:checked').value === "lab";
         const startTime = isLabrador ? "0400Z" : "0330Z";
 
@@ -157,7 +189,8 @@
         }
 
         let hash = 0;
-        const combinedSeed = nameInput.toLowerCase() + sessionSalt;
+        // Use the preserved sessionMeta.salt so the date is stable across devices
+        const combinedSeed = nameInput.toLowerCase() + sessionMeta.salt;
         for (let i = 0; i < combinedSeed.length; i++) {
             hash = combinedSeed.charCodeAt(i) + ((hash << 5) - hash);
         }
@@ -165,7 +198,7 @@
         const selectedIndex = Math.abs(hash) % curatedDates.length;
         assignedDateString = curatedDates[selectedIndex];
 
-        dateDisplay.innerText = `Assigned Date for ${nameInput}: ${assignedDateString}`;
+        dateDisplay.innerText = `Assigned Date for ${nameInput}: ${assignedDateString} (Session #${sessionMeta.genesisId})`;
 
         updateMapUrls();
 
@@ -173,27 +206,27 @@
         btnSea.disabled = false;
 
         updateChartTitle();
+        autoSaveToLocalStorage();
     }
 
-    function renderTable() {
+    function renderTable(landVals = null, oceanVals = null) {
         const tableBody = document.getElementById("data-table-body");
         const hours = getCurrentHoursList();
 
-        // Preserve current values if the student toggles between formats
-        const landInputs = Array.from(document.querySelectorAll('.land-input')).map(input => input.value);
-        const oceanInputs = Array.from(document.querySelectorAll('.ocean-input')).map(input => input.value);
+        const currentLand = landVals || Array.from(document.querySelectorAll('.land-input')).map(input => input.value);
+        const currentOcean = oceanVals || Array.from(document.querySelectorAll('.ocean-input')).map(input => input.value);
 
         tableBody.innerHTML = "";
 
         hours.forEach((hr, index) => {
             const row = document.createElement("tr");
-            const landVal = landInputs[index] !== undefined ? landInputs[index] : "0.0";
-            const oceanVal = oceanInputs[index] !== undefined ? oceanInputs[index] : "0.0";
+            const landVal = currentLand[index] !== undefined ? currentLand[index] : "0.0";
+            const oceanVal = currentOcean[index] !== undefined ? currentOcean[index] : "0.0";
 
             row.innerHTML = `
                 <td><strong>${hr}</strong></td>
-                <td><input type="number" class="land-input" value="${landVal}" step="0.1"></td>
-                <td><input type="number" class="ocean-input" value="${oceanVal}" step="0.1"></td>
+                <td><input type="number" class="land-input" value="${landVal}" step="0.1" oninput="autoSaveToLocalStorage()"></td>
+                <td><input type="number" class="ocean-input" value="${oceanVal}" step="0.1" oninput="autoSaveToLocalStorage()"></td>
             `;
             tableBody.appendChild(row);
         });
@@ -202,10 +235,9 @@
     function handleTimeFormatChange() {
         renderTable();
         updateMapUrls();
-
-        // Update Chart Labels to reflect current mode
         tempChart.data.labels = getCurrentHoursList();
         tempChart.update();
+        autoSaveToLocalStorage();
     }
 
     // Chart.js Setup
@@ -252,7 +284,7 @@
 
     function updateChartTitle() {
         const studentName = document.getElementById("student-name").value.trim() || "Student";
-        tempChart.options.plugins.title.text = `Student: ${studentName} | Date: ${assignedDateString}`;
+        tempChart.options.plugins.title.text = `Student: ${studentName} | Date: ${assignedDateString} | Session: #${sessionMeta.genesisId}`;
         tempChart.update();
     }
 
@@ -267,10 +299,140 @@
         tempChart.data.datasets[1].data = newOceanData;
         
         updateChartTitle();
+        showStatus("Chart updated successfully!", "green");
     }
 
-    // Initial render on load
-    renderTable();
+    // EXPORT PNG FEATURE
+    function downloadGraphPNG() {
+        updateChart(); // Ensure chart is fresh
+        const imageURI = tempChart.toBase64Image('image/png', 1);
+        const studentName = document.getElementById("student-name").value.trim() || "Student";
+        
+        const link = document.createElement('a');
+        link.download = `Thermal_Inertia_${studentName.replace(/\s+/g, '_')}_${assignedDateString.replace(/\//g, '-')}.png`;
+        link.href = imageURI;
+        link.click();
+        showStatus("Graph downloaded as PNG image!", "green");
+    }
+
+    // STATE MANAGEMENT (PERSISTENCE & ANTI-TAMPER)
+    function buildCurrentState() {
+        const studentName = document.getElementById("student-name").value.trim();
+        if (!sessionMeta.originalAuthor && studentName) {
+            sessionMeta.originalAuthor = studentName;
+        }
+
+        return {
+            meta: sessionMeta,
+            name: studentName,
+            region: document.querySelector('input[name="time-offset"]:checked').value,
+            landData: Array.from(document.querySelectorAll('.land-input')).map(i => i.value),
+            oceanData: Array.from(document.querySelectorAll('.ocean-input')).map(i => i.value)
+        };
+    }
+
+    function autoSaveToLocalStorage() {
+        const state = buildCurrentState();
+        localStorage.setItem('thermal_inertia_save', JSON.stringify(state));
+    }
+
+    function generateSnapshotUrl() {
+        const state = buildCurrentState();
+        const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(state));
+        return `${window.location.origin}${window.location.pathname}#state=${compressed}`;
+    }
+
+    function copyStateLink() {
+        const studentName = document.getElementById("student-name").value.trim();
+        if (!studentName) {
+            alert("Please enter your name first!");
+            return;
+        }
+
+        const url = generateSnapshotUrl();
+        navigator.clipboard.writeText(url).then(() => {
+            showStatus("Link copied to clipboard! Paste this into your Brightspace Quiz.", "green");
+        }).catch(() => {
+            prompt("Copy this link manually:", url);
+        });
+    }
+
+    function emailStateLink() {
+        const studentName = document.getElementById("student-name").value.trim();
+        if (!studentName) {
+            alert("Please enter your name first!");
+            return;
+        }
+
+        const url = generateSnapshotUrl();
+        const subject = encodeURIComponent(`Thermal Inertia Activity Link - ${studentName}`);
+        const body = encodeURIComponent(
+            `Here is your save link for the Land vs. Ocean Temperature Tracker:\n\n${url}\n\nOpen this link on any computer to resume your work.`
+        );
+
+        window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`, '_blank');
+        showStatus("Opening Gmail draft with your resume link...", "green");
+    }
+
+    function showStatus(text, color) {
+        const display = document.getElementById("status-display");
+        display.innerText = text;
+        display.style.color = color;
+        setTimeout(() => { display.innerText = ""; }, 5000);
+    }
+
+    function restoreState(state) {
+        if (!state) return;
+
+        if (state.meta) sessionMeta = state.meta;
+
+        const nameInput = document.getElementById("student-name");
+        nameInput.value = state.name || "";
+        
+        // If restoring an already created session, lock the name field to the original author
+        if (state.meta && state.meta.originalAuthor) {
+            nameInput.readOnly = true;
+            nameInput.style.backgroundColor = "#e8eaed";
+            nameInput.title = "Name locked to original author of this session.";
+        }
+
+        if (state.region) {
+            document.querySelector(`input[name="time-offset"][value="${state.region}"]`).checked = true;
+        }
+
+        initializeActivity();
+        renderTable(state.landData, state.oceanData);
+        updateChart();
+    }
+
+    // ON LOAD: Check URL Hash first, then fall back to LocalStorage
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.location.hash.startsWith('#state=')) {
+            try {
+                const compressed = window.location.hash.replace('#state=', '');
+                const jsonString = LZString.decompressFromEncodedURIComponent(compressed);
+                if (jsonString) {
+                    const parsed = JSON.parse(jsonString);
+                    restoreState(parsed);
+                    showStatus("Restored session from link!", "green");
+                }
+            } catch (e) {
+                console.error("Failed to load state from hash", e);
+            }
+            // Clear hash so refresh won't revert newer work
+            history.replaceState(null, '', window.location.pathname);
+        } else {
+            // LocalStorage fallback for same-machine refreshes
+            const saved = localStorage.getItem('thermal_inertia_save');
+            if (saved) {
+                try {
+                    restoreState(JSON.parse(saved));
+                } catch(e) {}
+            } else {
+                renderTable();
+            }
+        }
+    });
 </script>
 
 </body>
