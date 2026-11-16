@@ -56,7 +56,7 @@
 
 <div class="container">
     <h2>
-        <span class="secret-trigger" onclick="toggleTeacherKey()" title="Click to toggle Teacher Answer Key">🌡️</span> 
+        <span class="secret-trigger" onclick="toggleTeacherKey()">🌡️</span> 
         Land vs. Ocean Temperature Tracker
     </h2>
     
@@ -120,7 +120,7 @@
         <button class="action-btn btn-export" onclick="downloadGraphPNG()">📷 Download Graph (PNG)</button>
     </div>
 
-    <!-- TEACHER AUTO-DIAGNOSTIC BOX (Shown in review mode) -->
+    <!-- TEACHER AUTO-DIAGNOSTIC BOX (Shown only when Teacher Mode is toggled) -->
     <div id="teacher-diagnostics" class="teacher-box"></div>
 
     <!-- SAVE & SUBMIT TOOLBAR -->
@@ -347,7 +347,7 @@
         showStatus("Graph downloaded as PNG image!", "green");
     }
 
-    // TEACHER MASTER KEY OVERLAY (Ctrl+K or Cmd+K)
+    // TEACHER MASTER KEY & DIAGNOSTICS OVERLAY (Ctrl+K, Cmd+K, or click 🌡️)
     function toggleTeacherKey() {
         if (!assignedDateString || !masterKeys[assignedDateString]) {
             showStatus("No master key found for this date.", "red");
@@ -356,14 +356,14 @@
 
         const region = document.querySelector('input[name="time-offset"]:checked').value;
         const keyData = masterKeys[assignedDateString][region];
+        const diagBox = document.getElementById("teacher-diagnostics");
 
         if (teacherKeyActive) {
-            // Remove the 2 dashed key datasets
             tempChart.data.datasets = tempChart.data.datasets.slice(0, 2);
+            diagBox.style.display = "none";
             teacherKeyActive = false;
-            showStatus("Teacher Key Overlay: OFF", "#7f8c8d");
+            showStatus("Teacher Review Mode: OFF", "#7f8c8d");
         } else {
-            // Add dashed benchmark lines
             tempChart.data.datasets.push(
                 {
                     label: '🔑 Key Land (°C)',
@@ -386,8 +386,12 @@
                     tension: 0.3
                 }
             );
+            const currentLand = Array.from(document.querySelectorAll('.land-input')).map(i => i.value);
+            const currentOcean = Array.from(document.querySelectorAll('.ocean-input')).map(i => i.value);
+            runTeacherDiagnostics(currentLand, currentOcean);
+
             teacherKeyActive = true;
-            showStatus("Teacher Key Overlay: ACTIVE (Dashed Lines)", "green");
+            showStatus("Teacher Review Mode: ACTIVE", "green");
         }
 
         tempChart.update();
@@ -433,8 +437,7 @@
             • <strong>Land Range (ΔT):</strong> ${landDelta}°C (${landMin}° to ${landMax}°) ${landCheck} (Expected swing: &gt; 8°C)<br>
             • <strong>Ocean Range (ΔT):</strong> ${oceanDelta}°C (${oceanMin}° to ${oceanMax}°) ${oceanCheck} (Expected stability: &le; 2.5°C)<br>
             • <strong>Land Afternoon Peak:</strong> ${peakHour} (Normal solar peak: 12:30–15:30)<br>
-            • <strong>Thermal Inertia Demonstrated:</strong> ${landDelta > (oceanDelta * 3) ? "✅ Clear Specific Heat Contrast" : "❌ Lines are too similar"}<br>
-            <span style="font-size:0.85em; opacity: 0.85;">(Press <strong>Cmd+K</strong> or click the 🌡️ icon to overlay official answer key curves)</span>
+            • <strong>Thermal Inertia Demonstrated:</strong> ${landDelta > (oceanDelta * 3) ? "✅ Clear Specific Heat Contrast" : "❌ Lines are too similar"}
         `;
     }
 
@@ -540,7 +543,7 @@
                 const jsonString = LZString.decompressFromEncodedURIComponent(compressed);
                 if (jsonString) {
                     const parsed = JSON.parse(jsonString);
-                    restoreState(parsed, true);
+                    restoreState(parsed, false);
                     showStatus("Restored session from link!", "green");
                 }
             } catch (e) {
